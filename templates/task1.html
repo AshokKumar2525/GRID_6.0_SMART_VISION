@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task 1 - Brand Recognition and Expiry Detection</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Brand Recognition and Expiry Detection</h1>
+        <p>Upload an image or video for grocery brand recognition, counting, and expiry date detection:</p>
+
+        <!-- File Upload Form -->
+        <form action="/task1" method="POST" enctype="multipart/form-data">
+            <!-- Image Upload -->
+            <label for="imageUpload">Upload an Image:</label>
+            <input type="file" id="imageUpload" name="image" accept="image/*">
+            
+            <!-- Video Upload -->
+            <label for="videoUpload">Upload a Video:</label>
+            <input type="file" id="videoUpload" name="video" accept="video/*">
+
+            <button type="submit">Process</button>
+        </form>
+
+        <!-- Processed Image and Results -->
+        {% if processed_image %}
+        <h2>Processed Image:</h2>
+        <img src="data:image/jpeg;base64,{{ processed_image }}" alt="Processed Image">
+        <h3>Brand Counts:</h3>
+        <ul>
+            {% for brand, count in brand_counts.items() %}
+            <li>{{ brand }}: {{ count }}</li>
+            {% endfor %}
+        </ul>
+        <h3>Extracted Expiry Dates:</h3>
+        <ul>
+            {% for brand, expiry in expiry_result.items() %}
+            <li>{{ brand }}: {{ expiry }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+
+        <!-- Processed Video -->
+        {% if processed_video %}
+        <h2>Processed Video:</h2>
+        <video controls>
+            <source src="{{ processed_video }}" type="video/mp4">
+            Your browser does not support the video tag.
+        </video>
+        <h3>Brand Counts:</h3>
+        <ul>
+            {% for brand, count in brand_counts.items() %}
+            <li>{{ brand }}: {{ count }}</li>
+            {% endfor %}
+        </ul>
+        <h3>Extracted Expiry Dates:</h3>
+        <ul>
+            {% for brand, expiry in expiry_result.items() %}
+            <li>{{ brand }}: {{ expiry }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+
+        <!-- Error Handling -->
+        {% if error %}
+        <div class="error">
+            <p>{{ error }}</p>
+        </div>
+        {% endif %}
+    </div>
+</body>
+</html>
