@@ -43,7 +43,7 @@ def process_image_with_details(image):
             freshness_index = FRESHNESS_INDEX_MAP.get(freshness_class, 0)
             
             # Collect details for this produce
-            frame_details.append((fruit_name, freshness_index, 5))  # Adjust as per database schema
+            frame_details.append((fruit_name, freshness_index))  # Adjust as per database schema
 
             # Draw bounding box and label
             top_left = (int(x - width / 2), int(y - height / 2))
@@ -73,6 +73,8 @@ def process_image(image):
         result = CLIENT.infer(image_b64, model_id="freshness-nnryh/1")
         predictions = result.get('predictions', [])
 
+        details = []  # List to hold detection details
+
         # Parse predictions and draw bounding boxes
         for pred in predictions:
             x, y, width, height = pred['x'], pred['y'], pred['width'], pred['height']
@@ -81,9 +83,9 @@ def process_image(image):
             # Parse class name and map to freshness index
             freshness_class, fruit_name = parse_class_name(class_name)
             freshness_index = FRESHNESS_INDEX_MAP.get(freshness_class, 0)
-            print("came here")
-            insert_freshness_data_batch([(fruit_name,freshness_index,5)])
-            print("data inserted")
+            details.append((fruit_name, freshness_index))
+            insert_freshness_data_batch([(fruit_name, freshness_index)])
+
             # Draw bounding box and label
             top_left = (int(x - width / 2), int(y - height / 2))
             bottom_right = (int(x + width / 2), int(y + height / 2))
@@ -92,7 +94,8 @@ def process_image(image):
             cv2.putText(image, label, (top_left[0], top_left[1] - 10),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
 
-        return image
+        print("Detection details for the image:", details)  # Print detection details
+        return image, details
     except Exception as e:
         raise ValueError(f"Error during image processing: {str(e)}")
 
@@ -158,12 +161,13 @@ def process_video(video_path, output_path, skip_frames=25):
             insert_freshness_data_batch(produce_details)
 
         print(f"Processing completed. Processed {processed_count} frames out of {total_frames}.")
+        print("Detection details for the video:", produce_details)  # Print detection details for the video
         cap.release()
         out.release()
-        return output_path
+        return produce_details
     except Exception as e:
         raise ValueError(f"Error during video processing: {str(e)}")
-
+    
 # Flask Blueprint
 freshness_blueprint = Blueprint('freshness_blueprint', __name__)
 
@@ -193,7 +197,6 @@ def detect_freshness():
         return jsonify({"error": str(e)}), 500
 
 # Test the script independently
-# Test the script independently
 if __name__ == "__main__":
     # Test functionality independently
     print("Select mode: \n1. Image\n2. Video")
@@ -208,13 +211,18 @@ if __name__ == "__main__":
             print("Error: Could not load image. Please check the file path.")
         else:
             try:
-                processed_image = process_image(image)
+                # Process the image and get details
+                processed_image, data_list = process_image(image)
 
                 # Save and display the processed image
                 processed_path = "processed_image.jpg"
                 cv2.imwrite(processed_path, processed_image)
                 print(f"Processed image saved at: {processed_path}")
+                print("Detected Details (Fruit Name and Freshness Index):")
+                for fruit_name, freshness_index in data_list:
+                    print(f"Fruit: {fruit_name}, Freshness Index: {freshness_index}")
 
+                # Display the processed image
                 cv2.imshow("Processed Image", processed_image)
                 cv2.waitKey(0)
                 cv2.destroyAllWindows()
@@ -227,8 +235,12 @@ if __name__ == "__main__":
         output_path = "processed_video.mp4"
 
         try:
-            process_video(video_path, output_path)
+            # Process the video and get details
+            data = process_video(video_path, output_path)
             print(f"Processed video saved at: {output_path}")
+            print("Detected Details (Fruit Name and Freshness Index):")
+            for fruit_name, freshness_index in data:
+                print(f"Fruit: {fruit_name}, Freshness Index: {freshness_index}")
         except Exception as e:
             print(f"Error during video processing: {str(e)}")
 

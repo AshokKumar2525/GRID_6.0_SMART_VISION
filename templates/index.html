@@ -5,13 +5,72 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Smart Vision Tasks</title>
     <link rel="stylesheet" href="/static/styles.css">
+    <style>
+        /* General Reset and Styling */
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f9;
+            color: #333;
+        }
+        .container {
+            max-width: 900px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 20px;
+            color: #007bff;
+        }
+        .links {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-top: 20px;
+        }
+        a.button {
+            text-decoration: none;
+            display: inline-block;
+            padding: 15px 20px;
+            color: white;
+            background-color: #007bff;
+            border: none;
+            border-radius: 5px;
+            font-size: 1.1em;
+            font-weight: bold;
+            transition: background-color 0.3s ease, transform 0.3s ease;
+        }
+        a.button:hover {
+            background-color: #0056b3;
+            transform: scale(1.05);
+        }
+        a.button:active {
+            transform: scale(0.95);
+        }
+        .footer {
+            margin-top: 30px;
+            font-size: 0.9em;
+            color: #666;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
         <h1>Smart Vision Technology</h1>
+        <p>Welcome to Smart Vision Technology! Please select a task to get started:</p>
         <div class="links">
             <a href="/task1" class="button">Brand Recognition, Counting, & Expiry Detection</a>
             <a href="/task2" class="button">Freshness Detection</a>
+            <a href="/database" class="button">View Database</a>
+        </div>
+        <div class="footer">
+            <p>&copy; 2024 Smart Vision Technology. All rights reserved.</p>
         </div>
     </div>
 </body>

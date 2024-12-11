@@ -1,205 +1,126 @@
 import cv2
-import os
-import pytesseract
-from inference_sdk import InferenceHTTPClient
-from collections import Counter
-import base64
 import numpy as np
+import base64
+from flask import Blueprint, request, jsonify
+from inference_sdk import InferenceHTTPClient
+from collections import defaultdict
 
-# Initialize Inference Client
+# Initialize inference client
 CLIENT = InferenceHTTPClient(
     api_url="https://detect.roboflow.com",
-    api_key="VDWdiDCrMynoYfeMyEeC"  # Replace with your actual API key if needed
+    api_key="xSDpa81O2Q9cacyvS4Wl"
 )
 
-# Directory to store processed files
-PROCESSED_FOLDER = "processed"
-os.makedirs(PROCESSED_FOLDER, exist_ok=True)
-
-def encode_image_to_base64(image_bytes):
-    """
-    Encode image byte array to base64 string for API inference.
-    """
-    base64_bytes = base64.b64encode(image_bytes).decode('utf-8')
-    return base64_bytes
-
-def process_image(image_path):
-    """
-    Process image to detect expiry date using Tesseract OCR and RoboFlow inference.
-    """
-    # Read the image as byte array
-    with open(image_path, 'rb') as image_file:
-        file_bytes = np.asarray(bytearray(image_file.read()), dtype=np.uint8)
-
-    # Read the image using OpenCV
-    image = cv2.imdecode(file_bytes, 1)
-
-    # Encode the image to base64
-    base64_image = encode_image_to_base64(file_bytes)
-
-    # Perform inference using the RoboFlow API
-    result = CLIENT.infer(base64_image, model_id="expiry-date-detection-ssxnm/1")
-
-    # Extract predictions from the result
-    predictions = result.get('predictions', [])
-
-    if predictions:
-        # Create a list to store extracted dates
-        extracted_dates = []
-
-        # Loop through all predictions and extract text from each ROI
-        for prediction in predictions:
-            x, y, w, h = int(prediction['x']), int(prediction['y']), int(prediction['width']), int(prediction['height'])
-
-            # Extract the Region of Interest (ROI) based on the bounding box
-            roi = image[y - h // 2:y + h // 2, x - w // 2:x + w // 2]
-
-            # Use pytesseract to perform OCR on the ROI
-            pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'  # Update path to Tesseract
-            extracted_text = pytesseract.image_to_string(roi, config='--psm 6')  # Adjust config as needed
-
-            # Append the extracted text to the list
-            extracted_dates.append(extracted_text.strip())
-
-        # Determine the manufacturing and expiry dates
-        if len(extracted_dates) == 2:
-            mfg_date = extracted_dates[0]
-            expiry_date = extracted_dates[1]
-
-            # Check if the last two characters of both dates are digits
-            if mfg_date[-2:].isdigit() and expiry_date[-2:].isdigit():
-                # Swap dates if necessary
-                if int(mfg_date[-2:]) > int(expiry_date[-2:]):
-                    mfg_date, expiry_date = expiry_date, mfg_date
-            else:
-                mfg_date = "Not Detected"
-                expiry_date = "Not Detected"
-
-        elif len(extracted_dates) == 1:
-            mfg_date = extracted_dates[0]
-            expiry_date = "Not Detected"
-        else:
-            mfg_date = "Not Detected"
-            expiry_date = "Not Detected"
-
-        # Print the manufacturing and expiry dates
-        print("\nExtracted Dates:")
-        print(f"Manufacturing Date: {mfg_date}")
-        print(f"Expiry Date: {expiry_date}")
-    else:
-        print("No date predictions found.")
-
-
-def detect_brands_and_count_image(image, save_path=None):
-    """
-    Detect brands in an image and count the items.
-    """
-    # Save the image temporarily for inference
-    temp_image_path = os.path.join(PROCESSED_FOLDER, "temp_brand_image.png")
-    cv2.imwrite(temp_image_path, image)
-
-    # Perform inference
+# Function to process a single image and return brand counts
+def process_brand_image(image):
     try:
-        result = CLIENT.infer(temp_image_path, model_id="grocery-dataset-q9fj2/5")
+        _, buffer = cv2.imencode('.jpg', image)
+        image_b64 = base64.b64encode(buffer).decode('utf-8')
 
-        print(result)
-        if result.get('predictions') is None:
-            raise ValueError("No predictions found in the response.")
+        result = CLIENT.infer(image_b64, model_id="grocery-dataset-q9fj2/5")
+        predictions = result.get('predictions', [])
+
+        brand_counts = defaultdict(int)
+
+        for pred in predictions:
+            brand_name = pred['class']
+            brand_counts[brand_name] += 1
+
+            x, y, width, height = pred['x'], pred['y'], pred['width'], pred['height']
+            top_left = (int(x - width / 2), int(y - height / 2))
+            bottom_right = (int(x + width / 2), int(y + height / 2))
+
+            # Draw bounding boxes and labels
+            cv2.rectangle(image, top_left, bottom_right, (0, 255, 0), 2)
+            label = f"Brand: {brand_name}"
+            cv2.putText(image, label, (top_left[0], top_left[1] - 10),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+
+        return image, dict(brand_counts)
     except Exception as e:
-        print(f"Inference failed: {str(e)}")
-        raise
+        raise ValueError(f"Error during image processing: {str(e)}")
 
-    # Initialize counters and create a copy of the image for drawing
-    brand_counts = Counter()
-    predictions = result.get('predictions', [])
-    processed_image = image.copy()
+# Function to process a video and return brand counts
+def process_brand_video(video_path, output_path, skip_frames=90, resize_dim=(640, 480)):
+    try:
+        cap = cv2.VideoCapture(video_path)
+        if not cap.isOpened():
+            raise ValueError("Could not open video file")
 
-    # Process predictions
-    for pred in predictions:
-        try:
-            # Use .get() to handle missing keys
-            x = int(pred.get('x', 0) - pred.get('width', 0) / 2)
-            y = int(pred.get('y', 0) - pred.get('height', 0) / 2)
-            width = int(pred.get('width', 0))
-            height = int(pred.get('height', 0))
-            class_name = pred.get('class', 'Unknown')
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        fps = int(cap.get(cv2.CAP_PROP_FPS))
+        width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
-            # Update the brand count
-            brand_counts[class_name] += 1
+        out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
 
-            # Draw bounding boxes and labels on the processed image
-            cv2.rectangle(processed_image, (x, y), (x + width, y + height), (0, 255, 0), 2)
-            cv2.putText(
-                processed_image,
-                class_name,
-                (x, y - 10),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.5,
-                (0, 0, 255),
-                1,
-            )
+        frame_count = 0
+        overall_brand_counts = defaultdict(int)
 
-        except Exception as e:
-            print(f"Error processing prediction: {str(e)}")
-            continue
+        while cap.isOpened():
+            ret, frame = cap.read()
+            if not ret:
+                break
 
-    # Save the processed image if a path is provided
-    if save_path:
-        cv2.imwrite(save_path, processed_image)
+            if frame_count % skip_frames == 0:
+                try:
+                    resized_frame = cv2.resize(frame, resize_dim)
+                    processed_frame, frame_brand_counts = process_brand_image(resized_frame)
+                    processed_frame = cv2.resize(processed_frame, (width, height))
+                    for brand, count in frame_brand_counts.items():
+                        overall_brand_counts[brand] += count
 
-    return processed_image, dict(brand_counts)
+                    for _ in range(int(0.5 * fps)):
+                        out.write(processed_frame)
+                except Exception as e:
+                    print(f"Error processing frame {frame_count + 1}: {str(e)}")
+                    out.write(frame)
+            else:
+                out.write(frame)
 
+            frame_count += 1
 
-def detect_brands_and_count_video(video_path, output_path):
-    """
-    Detect brands in a video and count items frame-by-frame.
-    """
-    # Open the video file
-    cap = cv2.VideoCapture(video_path)
-    if not cap.isOpened():
-        raise ValueError(f"Error opening video file: {video_path}")
+        cap.release()
+        out.release()
 
-    # Get video properties
-    fps = int(cap.get(cv2.CAP_PROP_FPS))
-    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        print("Video processing complete.")
+        return overall_brand_counts
+    except Exception as e:
+        raise ValueError(f"Error during video processing: {str(e)}")
 
-    # Create a video writer for saving processed video
-    out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
+# Flask Blueprint
+brand_blueprint = Blueprint('brand_blueprint', __name__)
 
-    # Initialize a counter for brand counts
-    brand_counts = Counter()
+@brand_blueprint.route('/detect-brand', methods=['POST'])
+def detect_brand():
+    try:
+        if 'image' in request.files:
+            uploaded_file = request.files['image']
+            file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
+            image = cv2.imdecode(file_bytes, 1)
+            processed_image, brand_counts = process_brand_image(image)
+            _, buffer = cv2.imencode('.jpg', processed_image)
+            image_b64 = base64.b64encode(buffer).decode('utf-8')
+            return jsonify({"message": "Image processed successfully", "image": image_b64, "brand_counts": brand_counts})
 
-    # Process each frame
-    while cap.isOpened():
-        ret, frame = cap.read()
-        if not ret:
-            break
+        elif 'video' in request.files:
+            uploaded_file = request.files['video']
+            input_path = "static/uploads/input_video.mp4"
+            output_path = "static/processed/output_video.mp4"
+            uploaded_file.save(input_path)
+            brand_counts = process_brand_video(input_path, output_path)
+            return jsonify({"message": "Video processed successfully", "output_path": output_path, "brand_counts": brand_counts})
 
-        # Detect brands and count items in the current frame
-        try:
-            processed_frame, frame_counts = detect_brands_and_count_image(frame)
-            brand_counts.update(frame_counts)
-            out.write(processed_frame)
-        except Exception as e:
-            print(f"Error processing frame: {str(e)}")
-            continue
+        return jsonify({"error": "No valid file provided"}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
-    # Release resources
-    cap.release()
-    out.release()
-
-    return dict(brand_counts)
-
-
+# Script entry point
 if __name__ == "__main__":
-    # Test functionality independently
     print("Select mode: \n1. Image\n2. Video")
     mode = input("Enter 1 for image or 2 for video: ")
 
     if mode == "1":
-        # Test with an image
         image_path = input("Enter the path to the test image: ")
         image = cv2.imread(image_path)
 
@@ -207,43 +128,28 @@ if __name__ == "__main__":
             print("Error: Could not load image. Please check the file path.")
         else:
             try:
-                # Process the image for both brand detection and expiry date detection
-                processed_path = os.path.join(PROCESSED_FOLDER, "processed_image.png")
-                processed_image, brand_counts = detect_brands_and_count_image(image, save_path=processed_path)
+                processed_image, brand_counts = process_brand_image(image)
+                processed_path = "processed_image.jpg"
+                cv2.imwrite(processed_path, processed_image)
+                print(f"Processed image saved at: {processed_path}")
+                print(f"Brand counts: {brand_counts}")
 
-                # Display results
-                print("Brand Counts:")
-                for brand, count in brand_counts.items():
-                    print(f"{brand}: {count}")
-
-                # Show the processed image
                 cv2.imshow("Processed Image", processed_image)
                 cv2.waitKey(0)
                 cv2.destroyAllWindows()
-
-                # Perform expiry date detection
-                process_image(image_path)
-
             except Exception as e:
-                print(f"Error during processing: {str(e)}")
+                print(f"Error during image processing: {str(e)}")
 
     elif mode == "2":
-        # Test with a video
         video_path = input("Enter the path to the test video: ")
-        output_path = os.path.join(PROCESSED_FOLDER, "processed_video.mp4")
+        output_path = "processed_video.mp4"
 
         try:
-            # Process the video for brand detection
-            brand_counts = detect_brands_and_count_video(video_path, output_path)
-
-            # Display results
-            print("Brand Counts (aggregated across all frames):")
-            for brand, count in brand_counts.items():
-                print(f"{brand}: {count}")
-
+            brand_counts = process_brand_video(video_path, output_path)
             print(f"Processed video saved at: {output_path}")
+            print(f"Brand counts: {brand_counts}")
         except Exception as e:
-            print(f"Error during processing: {str(e)}")
+            print(f"Error during video processing: {str(e)}")
 
     else:
         print("Invalid input. Please enter 1 for image or 2 for video.")
