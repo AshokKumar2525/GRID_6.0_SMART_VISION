@@ -77,12 +77,12 @@ Task 1 allows users to upload images or videos containing branded items. The sys
 - **Before Output:**  
   Users will see options to upload two images/videos (one for brand detection and one for expiry date detection).
   
-  ![Task 1 UI Before](images\task1_before_output.png)
+  ![Task 1 UI Before](images/task1_before_output.png)
 
 - **After Output:**  
   The output displays the results under "Brand Count Expiry" along with the data saved in the database.
   
-  ![Task 1 UI After](images\task1_after_output.png)
+  ![Task 1 UI After](images/task1_after_output.png)
 
 
 
@@ -115,12 +115,12 @@ The data for both images and videos is stored in the PostgreSQL database in the 
 - **Before Output:**
   Users will see an option to upload either an image or a video for freshness detection.
 
-  ![Task 2 UI Before](images\task2_before_output.png)
+  ![Task 2 UI Before](images/task2_before_output.png)
 
 - **After Output:**
   The output displays the calculated "Produce Freshness Value."
 
-  ![Task 2 UI After](images\task2_after_output.png)
+  ![Task 2 UI After](images/task2_after_output.png)
 
 
 ## Task 3: View Database
@@ -148,7 +148,7 @@ The webpage provides an easy-to-read display of all the results stored in the da
 ###  UI:
 The database page will display a table with data in the above formats for both Task 1 and Task 2.
 
-  ![UI of database page](images\database.png)
+  ![UI of database page](images/database.png)
 
 
 ---
