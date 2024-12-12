@@ -1,6 +1,5 @@
 from flask import Flask, render_template, request
 from freshness_detection import process_image, process_video
-#from brand_products import process_brand_image, process_brand_video
 from BrandAndExpiry import process_brand_image, process_brand_video,extract_dates_from_image, process_expiry_date_video, clean_expiry_dates, map_brands_to_expiry_dates
 import cv2
 import base64
