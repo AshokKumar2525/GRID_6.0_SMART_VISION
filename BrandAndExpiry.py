@@ -282,42 +282,6 @@ def map_brands_to_expiry_dates(brand_counts, expiry_dates):
 
     return mapped_results
 
-# Flask Blueprint
-brand_blueprint = Blueprint('brand_blueprint', __name__)
-
-@brand_blueprint.route('/detect-brand-expiry', methods=['POST'])
-def detect_brand_expiry():
-    try:
-        if 'brand_video' in request.files and 'expiry_video' in request.files:
-            brand_video = request.files['brand_video']
-            expiry_video = request.files['expiry_video']
-
-            brand_video_path = "static/uploads/brand_video.mp4"
-            expiry_video_path = "static/uploads/expiry_video.mp4"
-            brand_video.save(brand_video_path)
-            expiry_video.save(expiry_video_path)
-
-            # Process Brand Video
-            brand_counts = process_brand_video(brand_video_path)
-
-            # Process Expiry Date Video
-            expiry_dates = process_expiry_date_video(expiry_video_path)
-
-            # Clean expiry dates
-            cleaned_expiry_dates = clean_expiry_dates(expiry_dates)
-
-            # Map brands to expiry dates
-            mapped_results = map_brands_to_expiry_dates(brand_counts, cleaned_expiry_dates)
-
-            return jsonify({
-                "message": "Brand and expiry date videos processed successfully",
-                "brand_counts": brand_counts,
-                "expiry_dates": mapped_results
-            })
-
-        return jsonify({"error": "No valid files provided"}), 400
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
 
 # Script entry point
 if __name__ == "__main__":
