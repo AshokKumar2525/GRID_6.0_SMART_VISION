@@ -168,33 +168,6 @@ def process_video(video_path, output_path, skip_frames=25):
     except Exception as e:
         raise ValueError(f"Error during video processing: {str(e)}")
     
-# Flask Blueprint
-freshness_blueprint = Blueprint('freshness_blueprint', __name__)
-
-@freshness_blueprint.route('/detect-freshness', methods=['POST'])
-def detect_freshness():
-    """Handle API requests for image and video freshness detection."""
-    try:
-        if 'image' in request.files:
-            uploaded_file = request.files['image']
-            file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
-            image = cv2.imdecode(file_bytes, 1)
-            processed_image = process_image(image)
-            _, buffer = cv2.imencode('.jpg', processed_image)
-            image_b64 = base64.b64encode(buffer).decode('utf-8')
-            return jsonify({"message": "Image processed successfully", "image": image_b64})
-
-        elif 'video' in request.files:
-            uploaded_file = request.files['video']
-            input_path = "static/uploads/input_video.mp4"
-            output_path = "static/processed/output_video.mp4"
-            uploaded_file.save(input_path)
-            process_video(input_path, output_path)
-            return jsonify({"message": "Video processed successfully", "output_path": output_path})
-
-        return jsonify({"error": "No valid file provided"}), 400
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
 
 # Test the script independently
 if __name__ == "__main__":
