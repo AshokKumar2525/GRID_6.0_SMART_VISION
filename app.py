@@ -1,12 +1,13 @@
 from flask import Flask, render_template, request
 from freshness_detection import process_image, process_video
-from BrandAndExpiry import process_brand_image, process_brand_video,extract_dates_from_image, process_expiry_date_video, clean_expiry_dates, map_brands_to_expiry_dates
 import cv2
 import base64
 import numpy as np
 import os
 from database import insert_brand_data_batch
 from view import fetch_data_from_database
+from BrandAndExpiry import process_brand_video,extract_dates_from_video,extract_and_clean_expiry_dates,map_brands_to_expiry_dates,process_brand_image,extract_dates_from_image
+from collections import defaultdict
 
 
 app = Flask(__name__)
@@ -82,38 +83,39 @@ def task1():
                 brand_image = request.files['brand_image']
                 expiry_image = request.files['expiry_image']
 
+                brand_imgae_path = os.path.join(UPLOAD_FOLDER, brand_image.filename)
+                expiry_image_path = os.path.join(UPLOAD_FOLDER, expiry_image.filename)
+                expiry_image.save(expiry_image_path)
+
                 # Read image data into numpy array
                 brand_image_bytes = np.asarray(bytearray(brand_image.read()), dtype=np.uint8)
-                expiry_image_bytes = np.asarray(bytearray(expiry_image.read()), dtype=np.uint8)
 
                 # Decode images using OpenCV
                 brand_image = cv2.imdecode(brand_image_bytes, 1)
-                expiry_image = cv2.imdecode(expiry_image_bytes, 1)
+                previous_predictions = []  
+                brand_counts = defaultdict(int)
 
-                # Process the brand image (you can replace this with your actual image processing logic)
-                brand_counts = process_brand_image(brand_image)
-                print("Brand Counts:", brand_counts)
-                
+                # Process Image
+                image, new_predictions, brand_counts= process_brand_image(brand_image,previous_predictions,brand_counts)
+                print("Brand Counts:", new_predictions)
 
-                # Extract expiry dates from the expiry image (replace with your own logic)
-                expiry_dates = extract_dates_from_image(expiry_image)
+                # Extract expiry dates from image
+                expiry_dates = extract_dates_from_image(expiry_image_path)
                 print("Expiry Dates:", expiry_dates)
-                if len(expiry_dates) == 1:
-                    expiry_dates=[expiry_dates]
-                # Clean expiry dates (ensure length matches brand counts)
-                cleaned_expiry_dates = clean_expiry_dates(expiry_dates, len(brand_counts))
+
+                detected_dates = {i + 1: dates for i, dates in enumerate(expiry_dates)}
+
+                # Clean expiry dates
+                consolidated_expiry_dates = extract_and_clean_expiry_dates(detected_dates)
+                print(consolidated_expiry_dates)
+                cleaned_expiry_dates = [expiry for frame, expiry in consolidated_expiry_dates.items()]
                 print("Cleaned Expiry Dates:", cleaned_expiry_dates)
+
 
                 # Map brands to expiry dates
                 mapped_results = map_brands_to_expiry_dates(brand_counts, cleaned_expiry_dates)
                 print("Mapped Results:", mapped_results)
 
-                # Convert processed brand and expiry images to base64 for HTML rendering
-                _, brand_buffer = cv2.imencode('.jpg', brand_image)
-                processed_image_brand = base64.b64encode(brand_buffer).decode('utf-8')
-
-                _, expiry_buffer = cv2.imencode('.jpg', expiry_image)
-                processed_image_expiry = base64.b64encode(expiry_buffer).decode('utf-8')
 
                 insert_brand_data_batch(mapped_results)
             except Exception as e:
@@ -136,20 +138,24 @@ def task1():
                 expiry_video.save(expiry_video_path)
 
                 # Process Brand Video
-                brand_counts = process_brand_video(brand_video_path, processed_brand_video_path)
+                brand_counts = process_brand_video(brand_video_path,processed_brand_video_path)
                 print("Brand Counts:", brand_counts)
 
                 # Process Expiry Date Video
-                expiry_dates = process_expiry_date_video(expiry_video_path)
+                expiry_dates = extract_dates_from_video(expiry_video_path)
                 print("Expiry Dates:", expiry_dates)
 
+                detected_dates = {i + 1: dates for i, dates in enumerate(expiry_dates)}
+
                 # Clean expiry dates
-                cleaned_expiry_dates = clean_expiry_dates(expiry_dates, len(brand_counts))
+                consolidated_expiry_dates = extract_and_clean_expiry_dates(detected_dates)
+                cleaned_expiry_dates = [expiry for frame, expiry in consolidated_expiry_dates.items()]
                 print("Cleaned Expiry Dates:", cleaned_expiry_dates)
 
                 # Map brands to expiry dates
                 mapped_results = map_brands_to_expiry_dates(brand_counts, cleaned_expiry_dates)
                 print("Mapped Results:", mapped_results)
+
                 processed_video_brand = processed_brand_video_path
                 insert_brand_data_batch(mapped_results)
 
