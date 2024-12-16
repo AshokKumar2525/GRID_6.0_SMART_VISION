@@ -88,33 +88,6 @@ def process_brand_video(video_path, output_path, skip_frames=90, resize_dim=(640
     except Exception as e:
         raise ValueError(f"Error during video processing: {str(e)}")
 
-# Flask Blueprint
-brand_blueprint = Blueprint('brand_blueprint', __name__)
-
-@brand_blueprint.route('/detect-brand', methods=['POST'])
-def detect_brand():
-    try:
-        if 'image' in request.files:
-            uploaded_file = request.files['image']
-            file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
-            image = cv2.imdecode(file_bytes, 1)
-            processed_image, brand_counts = process_brand_image(image)
-            _, buffer = cv2.imencode('.jpg', processed_image)
-            image_b64 = base64.b64encode(buffer).decode('utf-8')
-            return jsonify({"message": "Image processed successfully", "image": image_b64, "brand_counts": brand_counts})
-
-        elif 'video' in request.files:
-            uploaded_file = request.files['video']
-            input_path = "static/uploads/input_video.mp4"
-            output_path = "static/processed/output_video.mp4"
-            uploaded_file.save(input_path)
-            brand_counts = process_brand_video(input_path, output_path)
-            return jsonify({"message": "Video processed successfully", "output_path": output_path, "brand_counts": brand_counts})
-
-        return jsonify({"error": "No valid file provided"}), 400
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
 # Script entry point
 if __name__ == "__main__":
     print("Select mode: \n1. Image\n2. Video")

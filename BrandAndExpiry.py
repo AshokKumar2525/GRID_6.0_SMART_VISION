@@ -12,7 +12,7 @@ import random
 # Initialize inference client
 CLIENT = InferenceHTTPClient(
     api_url="https://detect.roboflow.com",
-    api_key="xSDpa81O2Q9cacyvS4Wl"
+    api_key="fn9Rt3TAeYWyJQCkHjot"
 )
 
 # Function to process a single image and return brand counts

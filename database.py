@@ -23,20 +23,20 @@ def calculate_expected_life_span(produce, freshness):
     """
     # Define the mapping for expected life spans
     freshness_life_span_mapping = {
-        100: {
+        10: {
             'Apple': 30, 'Banana': 7, 'Carrot': 21, 'Cucumber': 14, 'Pepper': 21,
             'Potato': 60, 'Tomato': 10, 'Mango': 14, 'Melon': 10, 'Orange': 30,
             'Peach': 7, 'Pear': 14
         },
-        75: {
+        6: {
             'Apple': 15, 'Banana': 4, 'Mango': 7, 'Melon': 5, 'Orange': 15,
             'Peach': 4, 'Pear': 7
         },
-        50: {
+        3: {
             'Apple': 5, 'Banana': 2, 'Mango': 3, 'Melon': 2, 'Orange': 5,
             'Peach': 2, 'Pear': 3
         },
-        25: {
+        0: {
             'Apple': 0, 'Banana': 0, 'Carrot': 0, 'Cucumber': 0, 'Pepper': 0,
             'Potato': 0, 'Tomato': 0, 'Mango': 0, 'Melon': 0, 'Orange': 0,
             'Peach': 0, 'Pear': 0

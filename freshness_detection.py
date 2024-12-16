@@ -8,15 +8,15 @@ from database import insert_freshness_data_batch
 # Initialize client for inference
 CLIENT = InferenceHTTPClient(
     api_url="https://detect.roboflow.com",
-    api_key="xSDpa81O2Q9cacyvS4Wl"
+    api_key="fn9Rt3TAeYWyJQCkHjot"
 )
 
 # Define freshness index mappings
 FRESHNESS_INDEX_MAP = {
-    "Fresh": 100,
-    "Semifresh": 75,
-    "Semirotten": 50,
-    "Rotten": 25
+    "Fresh": 10,
+    "Semifresh": 6,
+    "Semirotten": 3,
+    "Rotten": 0
 }
 # Function to process a single image
 def process_image_with_details(image):
